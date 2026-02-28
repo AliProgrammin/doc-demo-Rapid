@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+
+# Virtual env
+.venv/
+venv/
+
+# Local runtime
+app.db
+storage/
+
+# OS
+.DS_Store
