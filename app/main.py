@@ -1,5 +1,9 @@
-from fastapi import FastAPI
+import logging
 
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+
+from app.core.logging import configure_logging
 from app.db.session import Base, engine
 from app.routers.upload import router as upload_router
 from app.routers.extract import router as extract_router
@@ -9,9 +13,18 @@ from app.routers.extraction_runs import router as extraction_runs_router
 from app.routers.transactions import router as transactions_router
 from app.routers.invoices import router as invoices_router
 
+configure_logging()
+logger = logging.getLogger(__name__)
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="doc-demo-backend-variant")
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"success": False, "detail": "Internal server error"})
 
 
 @app.get("/health")

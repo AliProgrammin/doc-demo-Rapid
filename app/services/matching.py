@@ -3,12 +3,11 @@ from __future__ import annotations
 from datetime import datetime
 from difflib import SequenceMatcher
 
-
 WEIGHTS = {
-    "amount": 0.4,
+    "amount": 0.45,
     "date": 0.2,
-    "reference": 0.2,
-    "ai": 0.2,  # kept for parity shape, using heuristic fallback
+    "reference": 0.25,
+    "ai": 0.1,
 }
 
 
@@ -74,42 +73,49 @@ def _score_date(tx_date: str | None, inv_date: str | None, due_date: str | None)
 def _score_reference(tx: dict, inv: dict) -> float:
     desc = (tx.get("description") or "").lower()
     ref = (tx.get("reference") or "").lower()
-    combined = f"{desc} {ref}"
+    combined = f"{desc} {ref}".strip()
 
     inv_num = (inv.get("invoiceNumber") or "").lower()
     if inv_num:
         if inv_num in combined:
             return 1.0
-        parts = [p for p in inv_num.replace("_", "-").split("-") if len(p) >= 3]
-        if any(p in combined for p in parts):
-            return 0.9
+        normalized_inv = inv_num.replace("_", "-")
+        if normalized_inv in combined:
+            return 0.95
+        parts = [p for p in normalized_inv.split("-") if len(p) >= 3]
+        if parts and any(p in combined for p in parts):
+            return 0.85
 
     po = (inv.get("purchaseOrder") or "").lower()
     if po and po in combined:
-        return 0.95
+        return 0.9
 
     vendor = (inv.get("vendorName") or "").lower().strip()
     if vendor:
         if vendor in combined:
-            return 0.9
+            return 0.85
         vendor_words = [w for w in vendor.split() if len(w) > 2]
         if vendor_words:
             match_words = [w for w in vendor_words if w in combined]
             ratio = len(match_words) / len(vendor_words)
             if ratio >= 0.5:
-                return 0.6 + ratio * 0.3
+                return 0.55 + ratio * 0.35
         sim = SequenceMatcher(a=combined, b=vendor).ratio()
-        return max(0.0, sim * 0.8)
+        return max(0.0, sim * 0.7)
 
     return 0.0
 
 
 def reconcile(transactions: list[dict], invoices: list[dict]) -> dict:
-    debit_txs = [t for t in transactions if t.get("type") == "debit" and t.get("amount") not in (None, 0)]
+    indexed_debit_txs = [
+        (idx, t)
+        for idx, t in enumerate(transactions)
+        if t.get("type") == "debit" and t.get("amount") not in (None, 0)
+    ]
 
     candidates: list[dict] = []
-    for ti, tx in enumerate(debit_txs):
-        for ii, inv in enumerate(invoices):
+    for debit_idx, tx in indexed_debit_txs:
+        for inv_idx, inv in enumerate(invoices):
             amount = _score_amount(tx.get("amount"), inv.get("totalAmount"))
             date = _score_date(tx.get("date"), inv.get("invoiceDate"), inv.get("dueDate"))
             reference = _score_reference(tx, inv)
@@ -136,8 +142,8 @@ def reconcile(transactions: list[dict], invoices: list[dict]) -> dict:
 
             candidates.append(
                 {
-                    "txIndex": ti,
-                    "invIndex": ii,
+                    "txIndex": debit_idx,
+                    "invIndex": inv_idx,
                     "score": final,
                     "strategyScores": {
                         "amountMatch": amount,
@@ -150,17 +156,17 @@ def reconcile(transactions: list[dict], invoices: list[dict]) -> dict:
             )
 
     candidates.sort(key=lambda x: x["score"], reverse=True)
-    matched_tx: set[int] = set()
-    matched_inv: set[int] = set()
+    matched_tx_indices: set[int] = set()
+    matched_inv_indices: set[int] = set()
     matched: list[dict] = []
 
     for c in candidates:
-        if c["txIndex"] in matched_tx or c["invIndex"] in matched_inv:
+        if c["txIndex"] in matched_tx_indices or c["invIndex"] in matched_inv_indices:
             continue
         if c["score"] < 0.5:
             continue
 
-        tx = debit_txs[c["txIndex"]]
+        tx = transactions[c["txIndex"]]
         inv = invoices[c["invIndex"]]
         conf = c["score"]
         level = "high" if conf >= 0.85 else "medium" if conf >= 0.6 else "low"
@@ -177,13 +183,13 @@ def reconcile(transactions: list[dict], invoices: list[dict]) -> dict:
                 "matchFactors": c["matchFactors"],
             }
         )
-        matched_tx.add(c["txIndex"])
-        matched_inv.add(c["invIndex"])
+        matched_tx_indices.add(c["txIndex"])
+        matched_inv_indices.add(c["invIndex"])
 
     unmatched_transactions = [
-        t for t in transactions if (t not in debit_txs) or (debit_txs.index(t) not in matched_tx)
+        tx for idx, tx in enumerate(transactions) if idx not in matched_tx_indices
     ]
-    unmatched_invoices = [inv for idx, inv in enumerate(invoices) if idx not in matched_inv]
+    unmatched_invoices = [inv for idx, inv in enumerate(invoices) if idx not in matched_inv_indices]
 
     summary = {
         "totalTransactions": len(transactions),

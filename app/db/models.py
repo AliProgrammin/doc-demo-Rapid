@@ -55,3 +55,11 @@ class Invoice(Base):
     total_amount: Mapped[float | None] = mapped_column(Float)
     original_filename: Mapped[str] = mapped_column(String)
     overall_confidence: Mapped[float] = mapped_column(Float, default=0.5)
+
+
+class ReconciliationRun(Base):
+    __tablename__ = "reconciliation_runs"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    extraction_run_id: Mapped[str] = mapped_column(String, ForeignKey("extraction_runs.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    result_json: Mapped[str] = mapped_column(Text)
