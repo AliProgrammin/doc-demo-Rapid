@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import String, DateTime, Integer, Float, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,7 +13,7 @@ class Document(Base):
     original_filename: Mapped[str] = mapped_column(String, nullable=False)
     doc_type: Mapped[str] = mapped_column(String, nullable=False)
     blob_url: Mapped[str] = mapped_column(String, nullable=False)
-    upload_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    upload_date: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     file_size: Mapped[int | None] = mapped_column(Integer)
     content_type: Mapped[str | None] = mapped_column(String)
 
@@ -22,7 +22,7 @@ class ExtractionRun(Base):
     __tablename__ = "extraction_runs"
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     status: Mapped[str] = mapped_column(String, default="running")
-    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime)
     error_message: Mapped[str | None] = mapped_column(Text)
     bank_document_id: Mapped[str | None] = mapped_column(String, ForeignKey("documents.id"))

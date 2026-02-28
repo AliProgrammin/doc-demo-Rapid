@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -57,14 +57,14 @@ def extract_docs(payload: ExtractRequest, db: Session = Depends(get_db)):
             invoices.append(inv)
 
         run.status = "completed"
-        run.completed_at = datetime.utcnow()
+        run.completed_at = datetime.now(timezone.utc)
         run.transaction_count = len(transactions)
         run.invoice_count = len(invoices)
         db.commit()
     except HTTPException:
         run.status = "failed"
         run.error_message = "Input validation failure"
-        run.completed_at = datetime.utcnow()
+        run.completed_at = datetime.now(timezone.utc)
         db.commit()
         raise
     except Exception as exc:
@@ -72,7 +72,7 @@ def extract_docs(payload: ExtractRequest, db: Session = Depends(get_db)):
         logger.exception("Extraction failed for run_id=%s", run.id)
         run.status = "failed"
         run.error_message = str(exc)[:500]
-        run.completed_at = datetime.utcnow()
+        run.completed_at = datetime.now(timezone.utc)
         db.add(run)
         db.commit()
         raise HTTPException(status_code=500, detail="Extraction failed") from exc
