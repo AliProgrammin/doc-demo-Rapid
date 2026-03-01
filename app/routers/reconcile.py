@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.db.models import Transaction, Invoice, ReconciliationRun
 from app.schemas.common import ReconcileRequest
 from app.services.matching import reconcile
+from app.services.ocr import extract_text, parse_bank_transactions, parse_invoice
 
 router = APIRouter(prefix="/api", tags=["reconcile"])
 logger = logging.getLogger(__name__)
@@ -63,3 +64,30 @@ def get_reconcile_result(run_id: str, db: Session = Depends(get_db)):
 
     data = json.loads(db_rec.result_json)
     return {"success": True, **data}
+
+
+@router.post('/reconcile/full')
+def run_reconcile_full(payload: dict):
+    bank_url = payload.get('bankStatementUrl')
+    invoice_urls = payload.get('invoiceUrls') or []
+    if not bank_url or not invoice_urls:
+        raise HTTPException(status_code=400, detail='Provide bankStatementUrl and invoiceUrls')
+
+    text, conf = extract_text(bank_url)
+    transactions = parse_bank_transactions(text)
+    invoices = []
+    for inv in invoice_urls:
+        inv_text, inv_conf = extract_text(inv.get('url'))
+        invoices.append(parse_invoice(inv_text, inv.get('filename') or 'invoice', inv_conf))
+
+    result = reconcile(transactions, invoices)
+    return {
+        'success': True,
+        'extraction': {
+            'transactions': transactions,
+            'invoices': invoices,
+            'transactionCount': len(transactions),
+            'invoiceCount': len(invoices),
+        },
+        'reconciliation': result,
+    }

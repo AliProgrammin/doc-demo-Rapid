@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.db.models import Transaction
+from app.db.models import Transaction, Correction
 
 router = APIRouter(prefix="/api", tags=["transactions"])
 
@@ -38,6 +38,7 @@ def patch_transaction(tx_id: str, payload: dict, db: Session = Depends(get_db)):
     if not tx:
         raise HTTPException(status_code=404, detail='Transaction not found')
 
+    changed = False
     for field, model_field in {
         "date": "date",
         "description": "description",
@@ -46,7 +47,23 @@ def patch_transaction(tx_id: str, payload: dict, db: Session = Depends(get_db)):
         "type": "type",
     }.items():
         if field in payload:
-            setattr(tx, model_field, payload[field])
+            old_val = getattr(tx, model_field)
+            new_val = payload[field]
+            if str(old_val if old_val is not None else "") != str(new_val if new_val is not None else ""):
+                db.add(Correction(
+                    entity_type="transaction",
+                    entity_id=tx.id,
+                    document_id=tx.document_id,
+                    extraction_run_id=tx.extraction_run_id,
+                    field_name=field,
+                    original_value=str(old_val) if old_val is not None else None,
+                    corrected_value=str(new_val) if new_val is not None else None,
+                ))
+                changed = True
+            setattr(tx, model_field, new_val)
+
+    if not changed:
+        raise HTTPException(status_code=404, detail='Transaction not found or no changes')
 
     db.commit()
     db.refresh(tx)

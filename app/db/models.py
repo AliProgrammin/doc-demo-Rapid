@@ -53,6 +53,9 @@ class Invoice(Base):
     invoice_date: Mapped[str | None] = mapped_column(String)
     due_date: Mapped[str | None] = mapped_column(String)
     total_amount: Mapped[float | None] = mapped_column(Float)
+    subtotal: Mapped[float | None] = mapped_column(Float)
+    tax: Mapped[float | None] = mapped_column(Float)
+    purchase_order: Mapped[str | None] = mapped_column(String)
     original_filename: Mapped[str] = mapped_column(String)
     overall_confidence: Mapped[float] = mapped_column(Float, default=0.5)
 
@@ -63,3 +66,37 @@ class ReconciliationRun(Base):
     extraction_run_id: Mapped[str] = mapped_column(String, ForeignKey("extraction_runs.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     result_json: Mapped[str] = mapped_column(Text)
+
+
+class Correction(Base):
+    __tablename__ = "corrections"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    entity_type: Mapped[str] = mapped_column(String, nullable=False)
+    entity_id: Mapped[str] = mapped_column(String, nullable=False)
+    document_id: Mapped[str | None] = mapped_column(String, ForeignKey("documents.id"))
+    extraction_run_id: Mapped[str | None] = mapped_column(String, ForeignKey("extraction_runs.id"))
+    field_name: Mapped[str] = mapped_column(String, nullable=False)
+    original_value: Mapped[str | None] = mapped_column(Text)
+    corrected_value: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class ModelConfig(Base):
+    __tablename__ = "model_configs"
+    entity_type: Mapped[str] = mapped_column(String, primary_key=True)
+    model_id: Mapped[str] = mapped_column(String, nullable=False)
+    is_custom: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class TrainingRun(Base):
+    __tablename__ = "training_runs"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    model_id: Mapped[str] = mapped_column(String, nullable=False)
+    entity_type: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, default="preparing")
+    document_count: Mapped[int] = mapped_column(Integer, default=0)
+    correction_count: Mapped[int] = mapped_column(Integer, default=0)
+    operation_url: Mapped[str | None] = mapped_column(String)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime)

@@ -141,3 +141,47 @@ pytest -q
 - OCR quality still depends on source scan quality (rotation/noise/resolution).
 - Native PDF text extraction is used when text exists in PDF; scanned-image PDFs still rely on OCR path.
 - Matching is deterministic heuristic scoring (no external LLM dependency), tuned for backend parity and predictability.
+
+---
+
+## Final handoff (doc-demo-Rapid)
+
+### Parity sweep completed
+
+Compared against `/root/.openclaw/workspace/projects/doc-demo-reference` API surface and aligned backend routes with the reference contract where applicable for this Python backend variant.
+
+Added/updated parity endpoints:
+
+- `GET /api/documents?type=` (alias support alongside `docType`)
+- `GET /api/documents/{id}/sas`
+- `GET /api/corrections`
+- `GET /api/corrections/export`
+- `GET /api/models`
+- `POST /api/models/activate`
+- `POST /api/models/reset`
+- `GET /api/training/runs`
+- `POST /api/training/start`
+- `GET /api/training/status/{id}`
+- `POST /api/reconcile/full`
+
+Also added correction tracking on invoice/transaction PATCH updates and invoice optional fields (`subtotal`, `tax`, `purchaseOrder`) persistence support.
+
+### Verification checklist
+
+- [x] Parity sweep vs reference repo route set completed
+- [x] Remaining route-level parity gaps closed for backend variant
+- [x] Full test suite executed in Dockerized Python environment
+- [x] Added endpoint smoke tests for newly added parity routes
+- [x] Existing flow/health/ocr/matching tests still passing
+
+### Test evidence
+
+Run command:
+
+```bash
+docker run --rm -v /root/.openclaw/workspace/projects/doc-demo-backend-variant:/app -w /app python:3.12-slim sh -lc "pip install -q -r requirements.txt && pytest -q"
+```
+
+Result:
+
+- `8 passed` (no failures)
