@@ -1,4 +1,7 @@
+import os
+
 from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -47,3 +50,18 @@ def get_document_sas(doc_id: str, db: Session = Depends(get_db)):
         "documentId": doc.id,
         "originalFilename": doc.original_filename,
     }
+
+
+@router.get('/documents/{doc_id}/file')
+def serve_document_file(doc_id: str, db: Session = Depends(get_db)):
+    doc = db.get(Document, doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not os.path.exists(doc.blob_url):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    return FileResponse(
+        doc.blob_url,
+        media_type="application/pdf",
+        filename=doc.original_filename,
+        headers={"Content-Disposition": "inline"},
+    )

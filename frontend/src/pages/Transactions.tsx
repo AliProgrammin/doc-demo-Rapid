@@ -5,7 +5,7 @@ import type { SortingState } from '@tanstack/react-table'
 import { listTransactions, patchTransaction, listExtractionRuns, type Transaction } from '../api/client'
 import { ConfidenceBadge, AmountCell } from '../components/Badge'
 import PageHeader from '../components/PageHeader'
-import { ArrowUpDown } from 'lucide-react'
+import { ArrowUpDown, X, FileText } from 'lucide-react'
 
 const col = createColumnHelper<Transaction>()
 
@@ -30,22 +30,61 @@ function EditableCell({ value, onSave }: { value: string; onSave: (v: string) =>
   )
 }
 
+function PdfPanel({ docId, filename, onClose }: { docId: string; filename?: string; onClose: () => void }) {
+  return (
+    <div style={{
+      width: 480,
+      flexShrink: 0,
+      borderLeft: '2px solid var(--border)',
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'var(--white)',
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '10px 14px',
+        borderBottom: '1px solid var(--border-light)',
+        background: 'var(--light)',
+        display: 'flex', alignItems: 'center', gap: 8,
+        flexShrink: 0,
+      }}>
+        <FileText size={13} color="var(--mid)" />
+        <span className="label" style={{ color: 'var(--mid)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {filename ?? 'Document'}
+        </span>
+        <button
+          onClick={onClose}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'flex', color: 'var(--mid)' }}
+        >
+          <X size={14} />
+        </button>
+      </div>
+      {/* PDF iframe */}
+      <iframe
+        src={`/api/documents/${docId}/file`}
+        style={{ flex: 1, border: 'none', width: '100%' }}
+        title={filename ?? 'PDF viewer'}
+      />
+    </div>
+  )
+}
+
 export default function Transactions() {
   const { data: runs = [] } = useQuery({ queryKey: ['extraction-runs'], queryFn: listExtractionRuns })
-  const [runId, setRunId] = useState<string>('')
-  const activeRunId = runId || runs[0]?.id || ''
+  const [runId, setRunId] = useState<string>('all')
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
+  const [selectedFilename, setSelectedFilename] = useState<string | undefined>()
 
   const { data = [], isLoading } = useQuery({
-    queryKey: ['transactions', activeRunId],
-    queryFn: () => listTransactions(activeRunId),
-    enabled: !!activeRunId,
+    queryKey: ['transactions', runId],
+    queryFn: () => listTransactions(runId === 'all' ? undefined : runId),
   })
 
   const qc = useQueryClient()
   const { mutate: patch } = useMutation({
     mutationFn: ({ id, field, value }: { id: string; field: string; value: string }) =>
       patchTransaction(id, { [field]: value }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['transactions', activeRunId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['transactions', runId] }),
   })
 
   const [sorting, setSorting] = useState<SortingState>([])
@@ -102,6 +141,37 @@ export default function Transactions() {
       header: 'Confidence',
       cell: info => <td><ConfidenceBadge value={info.getValue()} /></td>,
     }),
+    col.display({
+      id: 'pdf',
+      header: 'PDF',
+      cell: info => {
+        const docId = info.row.original.documentId
+        if (!docId) return <td />
+        const isOpen = selectedDocId === docId
+        return (
+          <td>
+            <button
+              onClick={() => {
+                if (isOpen) { setSelectedDocId(null) } else {
+                  setSelectedDocId(docId)
+                  setSelectedFilename(undefined)
+                }
+              }}
+              style={{
+                background: isOpen ? 'var(--yellow)' : 'var(--light)',
+                border: `1px solid ${isOpen ? 'var(--dark)' : 'var(--border-light)'}`,
+                cursor: 'pointer', padding: '2px 8px',
+                fontSize: '0.7rem', fontWeight: 600,
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                color: 'var(--dark)',
+              }}
+            >
+              <FileText size={11} /> {isOpen ? 'Close' : 'View'}
+            </button>
+          </td>
+        )
+      },
+    }),
   ]
 
   const table = useReactTable({
@@ -119,85 +189,97 @@ export default function Transactions() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
         title="Transactions"
+        tag="Review"
         subtitle="Extracted bank transactions — double-click cells to edit and track corrections"
         actions={
           <input
+            className="input-base"
             placeholder="Search…"
             value={globalFilter}
             onChange={e => setGlobalFilter(e.target.value)}
-            style={{
-              background: 'var(--surface)', border: '1px solid var(--border)',
-              borderRadius: 8, padding: '6px 12px', color: 'var(--text)',
-              fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none', width: 180,
-            }}
+            style={{ width: 180 }}
           />
         }
       />
 
       {/* Run selector */}
-      {runs.length > 0 && (
-        <div style={{ padding: '12px 32px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Extraction Run:</span>
-          <select
-            value={activeRunId}
-            onChange={e => setRunId(e.target.value)}
-            style={{
-              background: 'var(--surface)', border: '1px solid var(--border)',
-              borderRadius: 6, padding: '4px 10px', color: 'var(--text)',
-              fontSize: '0.82rem', fontFamily: 'IBM Plex Mono, monospace', outline: 'none', cursor: 'pointer',
-            }}
-          >
-            {runs.map(r => (
-              <option key={r.id} value={r.id}>{r.id.slice(0, 12)}… ({r.transactionCount ?? 0} tx)</option>
-            ))}
-          </select>
-          <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>
-            {data.length} transaction{data.length !== 1 ? 's' : ''}
+      <div style={{ padding: '10px 28px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Run:</span>
+        <select
+          className="select-base"
+          value={runId}
+          onChange={e => setRunId(e.target.value)}
+        >
+          <option value="all">All Runs</option>
+          {runs.map(r => (
+            <option key={r.id} value={r.id}>{r.id.slice(0, 12)}… ({r.transactionCount ?? 0} tx)</option>
+          ))}
+        </select>
+        <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>
+          {data.length} transaction{data.length !== 1 ? 's' : ''}
+        </span>
+        {selectedDocId && (
+          <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--mid)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <FileText size={12} /> PDF open — click row PDF button to switch
           </span>
-        </div>
-      )}
+        )}
+      </div>
 
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        {isLoading ? (
-          <div style={{ padding: 40, textAlign: 'center' }}><span className="spinner" /></div>
-        ) : !activeRunId ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>No extraction runs yet</div>
-        ) : data.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>No transactions in this run</div>
-        ) : (
-          <table className="table-base">
-            <thead>
-              {table.getHeaderGroups().map(hg => (
-                <tr key={hg.id}>
-                  {hg.headers.map(h => (
-                    <th key={h.id} onClick={h.column.getToggleSortingHandler()} style={{ cursor: h.column.getCanSort() ? 'pointer' : 'default' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                        {h.column.getCanSort() && <ArrowUpDown size={12} style={{ opacity: 0.4 }} />}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.map(row => (
-                <tr key={row.id}>
-                  {row.getVisibleCells().map(cell => (
-                    flexRender(cell.column.columnDef.cell, cell.getContext())
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Split view */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+        {/* Table */}
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          {isLoading ? (
+            <div style={{ padding: 40, textAlign: 'center' }}><span className="spinner" /></div>
+          ) : data.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>No transactions found</div>
+          ) : (
+            <table className="table-base">
+              <thead>
+                {table.getHeaderGroups().map(hg => (
+                  <tr key={hg.id}>
+                    {hg.headers.map(h => (
+                      <th key={h.id} onClick={h.column.getToggleSortingHandler()} style={{ cursor: h.column.getCanSort() ? 'pointer' : 'default' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          {flexRender(h.column.columnDef.header, h.getContext())}
+                          {h.column.getCanSort() && <ArrowUpDown size={12} style={{ opacity: 0.4 }} />}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.map(row => (
+                  <tr
+                    key={row.id}
+                    style={{ background: selectedDocId === row.original.documentId ? 'var(--yellow-pale)' : undefined }}
+                  >
+                    {row.getVisibleCells().map(cell => (
+                      flexRender(cell.column.columnDef.cell, cell.getContext())
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* PDF panel */}
+        {selectedDocId && (
+          <PdfPanel
+            docId={selectedDocId}
+            filename={selectedFilename}
+            onClose={() => setSelectedDocId(null)}
+          />
         )}
       </div>
 
       {data.length > 0 && (
-        <div style={{ padding: '10px 32px', borderTop: '1px solid var(--border)', fontSize: '0.78rem', color: 'var(--muted)' }}>
+        <div style={{ padding: '10px 28px', borderTop: '1px solid var(--border)', fontSize: '0.78rem', color: 'var(--muted)', flexShrink: 0 }}>
           {table.getFilteredRowModel().rows.length} of {data.length} rows
           {' · '}
-          <span style={{ fontSize: '0.72rem', fontStyle: 'italic' }}>Double-click any cell to edit · changes are tracked as corrections</span>
+          <span style={{ fontSize: '0.72rem', fontStyle: 'italic' }}>Double-click cell to edit · changes tracked as corrections · click PDF to compare</span>
         </div>
       )}
     </div>

@@ -32,18 +32,7 @@ export default function Corrections() {
         title="Corrections"
         subtitle="Audit trail of all manual corrections made to extracted data"
         actions={
-          <button
-            onClick={handleExport}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '7px 14px', borderRadius: 8,
-              background: 'var(--surface-2)', border: '1px solid var(--border)',
-              color: 'var(--text)', fontWeight: 500, fontSize: '0.82rem',
-              cursor: 'pointer', transition: 'border-color 0.15s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
-          >
+          <button className="btn btn-ghost" onClick={handleExport}>
             <Download size={14} /> Export JSON
           </button>
         }
@@ -56,20 +45,20 @@ export default function Corrections() {
           display: 'flex', gap: 24, fontSize: '0.82rem',
         }}>
           <span>
-            <span className="mono" style={{ fontWeight: 700, color: 'var(--accent)' }}>
+            <span className="mono" style={{ fontWeight: 700, color: 'var(--dark)' }}>
               {String(stats.totalCorrections ?? 0)}
             </span>
-            <span style={{ color: 'var(--muted)' }}> total corrections</span>
+            <span style={{ color: 'var(--mid)' }}> total corrections</span>
           </span>
           <span>
-            <span className="mono" style={{ fontWeight: 700, color: '#3B82F6' }}>
+            <span className="mono" style={{ fontWeight: 700, color: 'var(--dark)' }}>
               {String(stats.documentsAffected ?? 0)}
             </span>
-            <span style={{ color: 'var(--muted)' }}> documents affected</span>
+            <span style={{ color: 'var(--mid)' }}> documents affected</span>
           </span>
           {Object.entries((stats.fieldBreakdown ?? {}) as Record<string, number>).map(([k, v]) => (
-            <span key={k} style={{ color: 'var(--muted)' }}>
-              <span style={{ color: 'var(--text)', fontWeight: 500 }}>{k}</span>{': '}{String(v)}
+            <span key={k} style={{ color: 'var(--mid)' }}>
+              <span style={{ color: 'var(--dark)', fontWeight: 600 }}>{k}</span>{': '}{String(v)}
             </span>
           ))}
         </div>
@@ -82,14 +71,8 @@ export default function Corrections() {
           <button
             key={t}
             onClick={() => setEntityType(t)}
-            style={{
-              padding: '4px 12px', borderRadius: 6, fontSize: '0.8rem',
-              border: `1px solid ${entityType === t ? 'var(--accent)' : 'var(--border)'}`,
-              background: entityType === t ? 'rgba(34,197,94,0.08)' : 'var(--surface)',
-              color: entityType === t ? 'var(--accent)' : 'var(--muted)',
-              fontWeight: entityType === t ? 600 : 400,
-              cursor: 'pointer', transition: 'all 0.15s',
-            }}
+            className={entityType === t ? 'btn btn-yellow' : 'btn btn-ghost'}
+            style={{ padding: '5px 14px', fontSize: '0.78rem' }}
           >
             {t || 'All'}
           </button>

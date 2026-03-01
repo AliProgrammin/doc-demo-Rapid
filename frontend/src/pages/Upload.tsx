@@ -17,7 +17,6 @@ function Dropzone({ docType, onUploaded }: {
   const [fileName, setFileName] = useState('')
   const [error, setError] = useState('')
 
-  // reset when resetKey changes
   useState(() => { setStatus('idle'); setFileName(''); setError('') })
 
   const onDrop = useCallback(async (files: File[]) => {
@@ -42,62 +41,64 @@ function Dropzone({ docType, onUploaded }: {
     disabled: status === 'uploading' || status === 'done',
   })
 
-  const accent = docType === 'bank_statement' ? '#3B82F6' : '#F59E0B'
-  const label  = docType === 'bank_statement' ? 'Drop bank statement PDF' : 'Drop invoice PDF'
-  const Icon   = docType === 'bank_statement' ? Landmark : FileText
+  const label = docType === 'bank_statement' ? 'Drop bank statement PDF' : 'Drop invoice PDF'
+  const Icon  = docType === 'bank_statement' ? Landmark : FileText
+
+  const borderColor = status === 'done' ? 'var(--profit)' : status === 'error' ? 'var(--loss)' : isDragActive ? 'var(--dark)' : 'var(--border-light)'
+  const bg = isDragActive ? 'var(--yellow-pale)' : status === 'done' ? '#16A34A06' : 'var(--lighter)'
 
   return (
     <div
       {...getRootProps()}
       style={{
-        border: `2px dashed ${status === 'done' ? '#22C55E' : status === 'error' ? '#EF4444' : isDragActive ? accent : 'var(--border)'}`,
-        borderRadius: 12,
+        border: `2px dashed ${borderColor}`,
         padding: '36px 24px',
         textAlign: 'center',
         cursor: status === 'done' ? 'default' : 'pointer',
-        background: isDragActive ? `${accent}08` : status === 'done' ? '#22C55E06' : 'var(--surface)',
+        background: bg,
         transition: 'all 0.2s',
       }}
     >
       <input {...getInputProps()} />
       <div style={{
-        width: 52, height: 52, borderRadius: 14, margin: '0 auto 14px',
-        background: `${accent}18`,
+        width: 48, height: 48, margin: '0 auto 14px',
+        background: status === 'done' ? '#16A34A12' : 'var(--light)',
+        border: '1px solid var(--border-light)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        {status === 'done'    ? <CheckCircle2 size={26} color="#22C55E" />
-         : status === 'error' ? <AlertCircle size={26} color="#EF4444" />
+        {status === 'done'       ? <CheckCircle2 size={24} color="var(--profit)" />
+         : status === 'error'    ? <AlertCircle size={24} color="var(--loss)" />
          : status === 'uploading' ? <span className="spinner" />
-         : <Icon size={26} color={accent} strokeWidth={1.6} />}
+         : <Icon size={24} color="var(--mid)" strokeWidth={1.6} />}
       </div>
-      <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: 5 }}>
+      <div style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: 5, color: 'var(--dark)' }}>
         {status === 'done' ? fileName : status === 'error' ? 'Upload failed' : label}
       </div>
-      <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
-        {status === 'done'    ? '✓ Uploaded — ready to extract'
-         : status === 'error' ? error
+      <div style={{ fontSize: '0.78rem', color: 'var(--mid)' }}>
+        {status === 'done'       ? '✓ Uploaded — ready to extract'
+         : status === 'error'    ? error
          : status === 'uploading' ? 'Uploading…'
-         : isDragActive ? 'Drop it here'
+         : isDragActive           ? 'Drop it here'
          : 'or click to browse · PDF only'}
       </div>
     </div>
   )
 }
 
-function ExtractionResult({ runId, count, label, color }: { runId: string; count: number; label: string; color: string }) {
+function ExtractionResult({ runId, count, label }: { runId: string; count: number; label: string }) {
   return (
     <div style={{
       marginTop: 16, padding: '16px 20px',
-      background: '#22C55E10', border: '1px solid #22C55E30', borderRadius: 10,
+      background: '#16A34A08', border: '1px solid #16A34A40',
       display: 'flex', gap: 24, alignItems: 'center',
     }}>
       <div>
-        <div style={{ fontSize: '1.4rem', fontWeight: 700, color, fontFamily: 'IBM Plex Mono, monospace' }}>{count}</div>
-        <div style={{ fontSize: '0.76rem', color: 'var(--muted)' }}>{label} extracted</div>
+        <div className="mono" style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--profit)' }}>{count}</div>
+        <div style={{ fontSize: '0.76rem', color: 'var(--mid)' }}>{label} extracted</div>
       </div>
       <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-        <div style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>Run ID</div>
-        <div style={{ fontSize: '0.75rem', color: '#22C55E', fontFamily: 'IBM Plex Mono, monospace' }}>{runId.slice(0, 8)}…</div>
+        <div className="label" style={{ color: 'var(--mid)' }}>Run ID</div>
+        <div className="mono" style={{ fontSize: '0.75rem', color: 'var(--profit)', marginTop: 2 }}>{runId.slice(0, 8)}…</div>
       </div>
     </div>
   )
@@ -135,14 +136,13 @@ function BankTab() {
         />
       </div>
 
-      {/* Existing bank docs */}
       {bankDocs.length > 0 && (
         <div className="fade-up-2" style={{
           marginTop: 16, maxWidth: 540,
-          background: 'var(--surface)', border: '1px solid var(--border)',
-          borderRadius: 10, padding: '14px 18px',
+          background: 'var(--lighter)', border: '1px solid var(--border-light)',
+          padding: '14px 18px',
         }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 10, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          <div className="label" style={{ color: 'var(--mid)', marginBottom: 10 }}>
             Previously uploaded
           </div>
           {bankDocs.map(d => (
@@ -151,58 +151,39 @@ function BankTab() {
                 type="radio" name="bank-sel"
                 checked={bankId === d.id}
                 onChange={() => { setBankId(d.id); setResult(null) }}
-                style={{ accentColor: '#3B82F6' }}
+                style={{ accentColor: 'var(--dark)' }}
               />
-              <Landmark size={13} color="#3B82F6" />
-              <span style={{ fontSize: '0.82rem', color: bankId === d.id ? 'var(--text)' : 'var(--muted)' }}>{d.originalFilename}</span>
+              <Landmark size={13} color="var(--mid)" />
+              <span style={{ fontSize: '0.82rem', color: bankId === d.id ? 'var(--dark)' : 'var(--mid)' }}>{d.originalFilename}</span>
             </label>
           ))}
         </div>
       )}
 
-      {/* Action row */}
-      <div className="fade-up-3" style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="fade-up-3" style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
         <button
+          className="btn btn-primary"
           onClick={() => runExtract()}
           disabled={!bankId || isPending}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '10px 22px', borderRadius: 8,
-            background: bankId && !isPending ? '#3B82F6' : 'var(--surface-2)',
-            color: bankId && !isPending ? '#fff' : 'var(--muted)',
-            fontWeight: 700, fontSize: '0.875rem', border: 'none',
-            cursor: bankId && !isPending ? 'pointer' : 'default',
-            transition: 'all 0.2s',
-          }}
         >
-          {isPending ? <span className="spinner" style={{ borderTopColor: '#fff' }} /> : <Play size={15} strokeWidth={2.5} />}
+          {isPending ? <span className="spinner spinner-light" /> : <Play size={14} strokeWidth={2.5} />}
           {isPending ? 'Extracting…' : 'Extract Transactions'}
         </button>
         {bankId && (
-          <button onClick={clearSelection} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            padding: '9px 14px', borderRadius: 8,
-            background: 'transparent', border: '1px solid var(--border)',
-            color: 'var(--muted)', fontSize: '0.8rem', cursor: 'pointer',
-          }}>
+          <button className="btn btn-ghost" onClick={clearSelection}>
             <X size={13} /> Clear
           </button>
         )}
       </div>
 
       {isError && (
-        <div style={{ marginTop: 10, color: '#EF4444', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ marginTop: 10, color: 'var(--loss)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
           <AlertCircle size={14} /> {(error as Error)?.message}
         </div>
       )}
 
       {result && (
-        <ExtractionResult
-          runId={result.extractionRunId}
-          count={result.transactionCount}
-          label="Transactions"
-          color="#3B82F6"
-        />
+        <ExtractionResult runId={result.extractionRunId} count={result.transactionCount} label="Transactions" />
       )}
     </div>
   )
@@ -245,14 +226,13 @@ function InvoiceTab() {
         />
       </div>
 
-      {/* Existing invoice docs */}
       {invDocs.length > 0 && (
         <div className="fade-up-2" style={{
           marginTop: 16, maxWidth: 540,
-          background: 'var(--surface)', border: '1px solid var(--border)',
-          borderRadius: 10, padding: '14px 18px',
+          background: 'var(--lighter)', border: '1px solid var(--border-light)',
+          padding: '14px 18px',
         }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 10, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          <div className="label" style={{ color: 'var(--mid)', marginBottom: 10 }}>
             Previously uploaded — select to include
           </div>
           {invDocs.map(d => (
@@ -261,65 +241,45 @@ function InvoiceTab() {
                 type="checkbox"
                 checked={invoiceIds.includes(d.id)}
                 onChange={e => toggleDoc(d.id, e.target.checked)}
-                style={{ accentColor: '#F59E0B' }}
+                style={{ accentColor: 'var(--dark)' }}
               />
-              <FileText size={13} color="#F59E0B" />
-              <span style={{ fontSize: '0.82rem', color: invoiceIds.includes(d.id) ? 'var(--text)' : 'var(--muted)' }}>{d.originalFilename}</span>
+              <FileText size={13} color="var(--mid)" />
+              <span style={{ fontSize: '0.82rem', color: invoiceIds.includes(d.id) ? 'var(--dark)' : 'var(--mid)' }}>{d.originalFilename}</span>
             </label>
           ))}
         </div>
       )}
 
-      {/* Selected count */}
       {invoiceIds.length > 0 && (
-        <div className="fade-up" style={{ marginTop: 10, fontSize: '0.8rem', color: '#F59E0B' }}>
+        <div className="fade-up" style={{ marginTop: 10, fontSize: '0.8rem', color: 'var(--mid)' }}>
           {invoiceIds.length} invoice{invoiceIds.length > 1 ? 's' : ''} selected
         </div>
       )}
 
-      {/* Action row */}
-      <div className="fade-up-3" style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="fade-up-3" style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
         <button
+          className="btn btn-yellow"
           onClick={() => runExtract()}
           disabled={invoiceIds.length === 0 || isPending}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '10px 22px', borderRadius: 8,
-            background: invoiceIds.length > 0 && !isPending ? '#F59E0B' : 'var(--surface-2)',
-            color: invoiceIds.length > 0 && !isPending ? '#020617' : 'var(--muted)',
-            fontWeight: 700, fontSize: '0.875rem', border: 'none',
-            cursor: invoiceIds.length > 0 && !isPending ? 'pointer' : 'default',
-            transition: 'all 0.2s',
-          }}
         >
-          {isPending ? <span className="spinner" style={{ borderTopColor: '#020617' }} /> : <Play size={15} strokeWidth={2.5} />}
+          {isPending ? <span className="spinner" /> : <Play size={14} strokeWidth={2.5} />}
           {isPending ? 'Extracting…' : `Extract Invoice${invoiceIds.length > 1 ? 's' : ''}`}
         </button>
-        {(invoiceIds.length > 0) && (
-          <button onClick={clearAll} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            padding: '9px 14px', borderRadius: 8,
-            background: 'transparent', border: '1px solid var(--border)',
-            color: 'var(--muted)', fontSize: '0.8rem', cursor: 'pointer',
-          }}>
+        {invoiceIds.length > 0 && (
+          <button className="btn btn-ghost" onClick={clearAll}>
             <X size={13} /> Clear
           </button>
         )}
       </div>
 
       {isError && (
-        <div style={{ marginTop: 10, color: '#EF4444', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ marginTop: 10, color: 'var(--loss)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
           <AlertCircle size={14} /> {(error as Error)?.message}
         </div>
       )}
 
       {result && (
-        <ExtractionResult
-          runId={result.extractionRunId}
-          count={result.invoiceCount}
-          label="Invoices"
-          color="#F59E0B"
-        />
+        <ExtractionResult runId={result.extractionRunId} count={result.invoiceCount} label="Invoices" />
       )}
     </div>
   )
@@ -330,7 +290,7 @@ function InvoiceTab() {
 function ReconcileTab() {
   const qc = useQueryClient()
   const { data: runs = [] } = useQuery({ queryKey: ['extraction-runs'], queryFn: listExtractionRuns })
-  const [bankRunId, setBankRunId]     = useState<string>('')
+  const [bankRunId, setBankRunId]       = useState<string>('')
   const [invoiceRunId, setInvoiceRunId] = useState<string>('')
   const [result, setResult] = useState<{
     reconciliationRunId: string
@@ -342,7 +302,6 @@ function ReconcileTab() {
 
   const { mutate: runReconcile, isPending, isError, error } = useMutation({
     mutationFn: async () => {
-      // extract from both runs into a combined run if different, or use same run
       const runId = bankRunId || invoiceRunId
       return reconcile(runId)
     },
@@ -352,55 +311,49 @@ function ReconcileTab() {
     },
   })
 
-  // runs that have transactions (bank) vs invoices
   const bankRuns    = runs.filter(r => (r.transactionCount ?? 0) > 0)
   const invoiceRuns = runs.filter(r => (r.invoiceCount ?? 0) > 0)
-
   const canRun = !!(bankRunId || invoiceRunId)
 
   return (
     <div>
       {/* Run selectors */}
       <div className="fade-up-1" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxWidth: 640, marginBottom: 24 }}>
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px' }}>
+        <div style={{ background: 'var(--lighter)', border: '1px solid var(--border-light)', padding: '16px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
-            <ArrowLeftRight size={14} color="#3B82F6" />
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#3B82F6', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              Bank Statement Run
-            </span>
+            <ArrowLeftRight size={13} color="var(--mid)" />
+            <span className="label" style={{ color: 'var(--mid)' }}>Bank Statement Run</span>
           </div>
           {bankRuns.length === 0 ? (
-            <div style={{ fontSize: '0.8rem', color: 'var(--muted)', fontStyle: 'italic' }}>No runs with transactions yet</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--mid)', fontStyle: 'italic' }}>No runs with transactions yet</div>
           ) : (
             bankRuns.map(r => (
               <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer' }}>
-                <input type="radio" name="bank-run" checked={bankRunId === r.id} onChange={() => setBankRunId(r.id)} style={{ accentColor: '#3B82F6' }} />
-                <span style={{ fontSize: '0.8rem', fontFamily: 'IBM Plex Mono, monospace', color: bankRunId === r.id ? 'var(--text)' : 'var(--muted)' }}>
+                <input type="radio" name="bank-run" checked={bankRunId === r.id} onChange={() => setBankRunId(r.id)} style={{ accentColor: 'var(--dark)' }} />
+                <span className="mono" style={{ fontSize: '0.78rem', color: bankRunId === r.id ? 'var(--dark)' : 'var(--mid)' }}>
                   {r.id.slice(0, 10)}…
                 </span>
-                <span style={{ fontSize: '0.72rem', color: '#3B82F6' }}>{r.transactionCount} tx</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--mid)' }}>{r.transactionCount} tx</span>
               </label>
             ))
           )}
         </div>
 
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px' }}>
+        <div style={{ background: 'var(--lighter)', border: '1px solid var(--border-light)', padding: '16px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
-            <Receipt size={14} color="#F59E0B" />
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#F59E0B', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              Invoice Run
-            </span>
+            <Receipt size={13} color="var(--mid)" />
+            <span className="label" style={{ color: 'var(--mid)' }}>Invoice Run</span>
           </div>
           {invoiceRuns.length === 0 ? (
-            <div style={{ fontSize: '0.8rem', color: 'var(--muted)', fontStyle: 'italic' }}>No runs with invoices yet</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--mid)', fontStyle: 'italic' }}>No runs with invoices yet</div>
           ) : (
             invoiceRuns.map(r => (
               <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer' }}>
-                <input type="radio" name="invoice-run" checked={invoiceRunId === r.id} onChange={() => setInvoiceRunId(r.id)} style={{ accentColor: '#F59E0B' }} />
-                <span style={{ fontSize: '0.8rem', fontFamily: 'IBM Plex Mono, monospace', color: invoiceRunId === r.id ? 'var(--text)' : 'var(--muted)' }}>
+                <input type="radio" name="invoice-run" checked={invoiceRunId === r.id} onChange={() => setInvoiceRunId(r.id)} style={{ accentColor: 'var(--dark)' }} />
+                <span className="mono" style={{ fontSize: '0.78rem', color: invoiceRunId === r.id ? 'var(--dark)' : 'var(--mid)' }}>
                   {r.id.slice(0, 10)}…
                 </span>
-                <span style={{ fontSize: '0.72rem', color: '#F59E0B' }}>{r.invoiceCount} inv</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--mid)' }}>{r.invoiceCount} inv</span>
               </label>
             ))
           )}
@@ -408,37 +361,20 @@ function ReconcileTab() {
       </div>
 
       {/* Run button */}
-      <div className="fade-up-2" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <button
-          onClick={() => runReconcile()}
-          disabled={!canRun || isPending}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '10px 22px', borderRadius: 8,
-            background: canRun && !isPending ? '#22C55E' : 'var(--surface-2)',
-            color: canRun && !isPending ? '#020617' : 'var(--muted)',
-            fontWeight: 700, fontSize: '0.875rem', border: 'none',
-            cursor: canRun && !isPending ? 'pointer' : 'default',
-            transition: 'all 0.2s',
-          }}
-        >
-          {isPending ? <span className="spinner" style={{ borderTopColor: '#020617' }} /> : <Play size={15} strokeWidth={2.5} />}
+      <div className="fade-up-2" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+        <button className="btn btn-primary" onClick={() => runReconcile()} disabled={!canRun || isPending}>
+          {isPending ? <span className="spinner spinner-light" /> : <Play size={14} strokeWidth={2.5} />}
           {isPending ? 'Reconciling…' : 'Run Reconciliation'}
         </button>
         {result && (
-          <button onClick={() => setResult(null)} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            padding: '9px 14px', borderRadius: 8,
-            background: 'transparent', border: '1px solid var(--border)',
-            color: 'var(--muted)', fontSize: '0.8rem', cursor: 'pointer',
-          }}>
+          <button className="btn btn-ghost" onClick={() => setResult(null)}>
             <X size={13} /> Clear
           </button>
         )}
       </div>
 
       {isError && (
-        <div style={{ marginBottom: 16, color: '#EF4444', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ marginBottom: 16, color: 'var(--loss)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
           <AlertCircle size={14} /> {(error as Error)?.message}
         </div>
       )}
@@ -447,31 +383,31 @@ function ReconcileTab() {
       {result && (
         <div className="fade-up">
           {/* Summary */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 0, marginBottom: 20, border: '1px solid var(--border)', flexWrap: 'wrap' }}>
             {[
-              { label: 'Matched',       value: result.summary.matchedCount,              color: '#22C55E' },
-              { label: 'Unmatched Tx',  value: result.summary.unmatchedTransactionCount, color: '#EF4444' },
-              { label: 'Unmatched Inv', value: result.summary.unmatchedInvoiceCount,     color: '#F59E0B' },
-              { label: 'Total Tx',      value: result.summary.totalTransactions,         color: '#3B82F6' },
-              { label: 'Total Inv',     value: result.summary.totalInvoices,             color: '#A78BFA' },
-            ].map(({ label, value, color }) => (
+              { label: 'Matched',       value: result.summary.matchedCount,              color: 'var(--profit)' },
+              { label: 'Unmatched Tx',  value: result.summary.unmatchedTransactionCount, color: 'var(--loss)' },
+              { label: 'Unmatched Inv', value: result.summary.unmatchedInvoiceCount,     color: 'var(--warn)' },
+              { label: 'Total Tx',      value: result.summary.totalTransactions,         color: 'var(--dark)' },
+              { label: 'Total Inv',     value: result.summary.totalInvoices,             color: 'var(--dark)' },
+            ].map(({ label, value, color }, i) => (
               <div key={label} style={{
-                background: 'var(--surface)', border: '1px solid var(--border)',
-                borderRadius: 10, padding: '12px 16px', minWidth: 100,
+                padding: '14px 20px', minWidth: 110,
+                borderRight: i < 4 ? '1px solid var(--border-light)' : 'none',
               }}>
                 <div className="mono" style={{ fontSize: '1.4rem', fontWeight: 700, color }}>{value}</div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: 2 }}>{label}</div>
+                <div className="label" style={{ color: 'var(--mid)', marginTop: 4 }}>{label}</div>
               </div>
             ))}
           </div>
 
           {/* Matched pairs */}
           {result.matched.length > 0 && (
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
-              <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 7 }}>
-                <CheckCircle2 size={14} color="#22C55E" />
-                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Matched Pairs</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>({result.matched.length})</span>
+            <div className="card" style={{ overflow: 'hidden', marginBottom: 16 }}>
+              <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-light)', background: 'var(--light)', display: 'flex', alignItems: 'center', gap: 7 }}>
+                <CheckCircle2 size={13} color="var(--profit)" />
+                <span className="label" style={{ color: 'var(--mid)' }}>Matched Pairs</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--mid)', fontWeight: 400 }}>({result.matched.length})</span>
               </div>
               <table className="table-base">
                 <thead><tr><th>Transaction</th><th>Invoice</th><th>Tx Amount</th><th>Inv Amount</th><th>Score</th><th>Level</th></tr></thead>
@@ -480,11 +416,11 @@ function ReconcileTab() {
                     <tr key={i}>
                       <td>
                         <div style={{ fontSize: '0.82rem' }}>{pair.transaction?.description ?? '—'}</div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--muted)', fontFamily: 'IBM Plex Mono, monospace' }}>{pair.transaction?.date}</div>
+                        <div className="mono" style={{ fontSize: '0.72rem', color: 'var(--mid)' }}>{pair.transaction?.date}</div>
                       </td>
                       <td>
                         <div style={{ fontSize: '0.82rem' }}>{pair.invoice?.vendorName ?? '—'}</div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--muted)', fontFamily: 'IBM Plex Mono, monospace' }}>#{pair.invoice?.invoiceNumber}</div>
+                        <div className="mono" style={{ fontSize: '0.72rem', color: 'var(--mid)' }}>#{pair.invoice?.invoiceNumber}</div>
                       </td>
                       <td><AmountCell amount={pair.transaction?.amount ?? 0} type={pair.transaction?.type} /></td>
                       <td><AmountCell amount={pair.invoice?.totalAmount ?? 0} /></td>
@@ -499,11 +435,11 @@ function ReconcileTab() {
 
           {/* Unmatched */}
           {result.unmatchedTransactions.length > 0 && (
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
-              <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 7 }}>
-                <XCircle size={14} color="#EF4444" />
-                <span style={{ fontWeight: 600, fontSize: '0.875rem', color: '#EF4444' }}>Unmatched Transactions</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>({result.unmatchedTransactions.length})</span>
+            <div className="card" style={{ overflow: 'hidden', marginBottom: 16 }}>
+              <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-light)', background: 'var(--light)', display: 'flex', alignItems: 'center', gap: 7 }}>
+                <XCircle size={13} color="var(--loss)" />
+                <span className="label" style={{ color: 'var(--loss)' }}>Unmatched Transactions</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--mid)', fontWeight: 400 }}>({result.unmatchedTransactions.length})</span>
               </div>
               <table className="table-base">
                 <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Type</th></tr></thead>
@@ -513,7 +449,7 @@ function ReconcileTab() {
                       <td className="mono" style={{ fontSize: '0.8rem' }}>{tx.date}</td>
                       <td style={{ fontSize: '0.82rem' }}>{tx.description}</td>
                       <td><AmountCell amount={tx.amount} type={tx.type} /></td>
-                      <td style={{ fontSize: '0.75rem', color: 'var(--muted)', textTransform: 'capitalize' }}>{tx.type}</td>
+                      <td style={{ fontSize: '0.75rem', color: 'var(--mid)', textTransform: 'capitalize' }}>{tx.type}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -522,11 +458,11 @@ function ReconcileTab() {
           )}
 
           {result.unmatchedInvoices.length > 0 && (
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 7 }}>
-                <AlertTriangle size={14} color="#F59E0B" />
-                <span style={{ fontWeight: 600, fontSize: '0.875rem', color: '#F59E0B' }}>Unmatched Invoices</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>({result.unmatchedInvoices.length})</span>
+            <div className="card" style={{ overflow: 'hidden' }}>
+              <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-light)', background: 'var(--light)', display: 'flex', alignItems: 'center', gap: 7 }}>
+                <AlertTriangle size={13} color="var(--warn)" />
+                <span className="label" style={{ color: 'var(--warn)' }}>Unmatched Invoices</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--mid)', fontWeight: 400 }}>({result.unmatchedInvoices.length})</span>
               </div>
               <table className="table-base">
                 <thead><tr><th>Invoice #</th><th>Vendor</th><th>Total</th><th>Due Date</th></tr></thead>
@@ -536,7 +472,7 @@ function ReconcileTab() {
                       <td className="mono" style={{ fontSize: '0.8rem' }}>#{inv.invoiceNumber}</td>
                       <td style={{ fontSize: '0.82rem' }}>{inv.vendorName}</td>
                       <td><AmountCell amount={inv.totalAmount} /></td>
-                      <td className="mono" style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>{inv.dueDate}</td>
+                      <td className="mono" style={{ fontSize: '0.8rem', color: 'var(--mid)' }}>{inv.dueDate}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -554,22 +490,23 @@ function ReconcileTab() {
 export default function UploadPage() {
   const [tab, setTab] = useState<Tab>('bank')
 
-  const tabs: { key: Tab; label: string; icon: React.ElementType; color: string }[] = [
-    { key: 'bank',      label: 'Bank Statement', icon: Landmark,   color: '#3B82F6' },
-    { key: 'invoice',   label: 'Invoices',        icon: FileText,   color: '#F59E0B' },
-    { key: 'reconcile', label: 'Reconciliation',  icon: FileCheck2, color: '#22C55E' },
+  const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
+    { key: 'bank',      label: 'Bank Statement', icon: Landmark   },
+    { key: 'invoice',   label: 'Invoices',        icon: FileText   },
+    { key: 'reconcile', label: 'Reconciliation',  icon: FileCheck2 },
   ]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
         title="Upload & Extract"
+        tag="Ingest"
         subtitle="Upload documents and run OCR extraction independently per type"
       />
 
       {/* Tab bar */}
-      <div style={{ padding: '0 32px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 0 }}>
-        {tabs.map(({ key, label, icon: Icon, color }) => {
+      <div style={{ padding: '0 28px', borderBottom: '2px solid var(--border)', display: 'flex', gap: 0, background: 'var(--white)' }}>
+        {tabs.map(({ key, label, icon: Icon }) => {
           const active = tab === key
           return (
             <button
@@ -578,18 +515,19 @@ export default function UploadPage() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 7,
                 padding: '13px 20px',
-                background: 'transparent', border: 'none',
-                borderBottom: `2px solid ${active ? color : 'transparent'}`,
-                color: active ? color : 'var(--muted)',
-                fontWeight: active ? 600 : 400,
-                fontSize: '0.875rem',
+                background: active ? 'var(--yellow)' : 'transparent',
+                border: 'none',
+                borderRight: '1px solid var(--border-light)',
+                color: active ? 'var(--dark)' : 'var(--mid)',
+                fontWeight: active ? 700 : 500,
+                fontSize: '0.8rem',
+                letterSpacing: '0.02em',
                 cursor: 'pointer',
                 transition: 'all 0.15s',
-                marginBottom: -1,
                 fontFamily: 'inherit',
               }}
             >
-              <Icon size={15} strokeWidth={active ? 2.2 : 1.8} />
+              <Icon size={14} strokeWidth={active ? 2.2 : 1.8} />
               {label}
             </button>
           )

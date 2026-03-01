@@ -5,7 +5,7 @@ import type { SortingState } from '@tanstack/react-table'
 import { listInvoices, patchInvoice, listExtractionRuns, type Invoice } from '../api/client'
 import { ConfidenceBadge } from '../components/Badge'
 import PageHeader from '../components/PageHeader'
-import { ArrowUpDown } from 'lucide-react'
+import { ArrowUpDown, X, FileText } from 'lucide-react'
 
 const col = createColumnHelper<Invoice>()
 
@@ -32,22 +32,59 @@ function EditableCell({ value, onSave, mono }: { value: string | number | undefi
   )
 }
 
+function PdfPanel({ docId, filename, onClose }: { docId: string; filename?: string; onClose: () => void }) {
+  return (
+    <div style={{
+      width: 480,
+      flexShrink: 0,
+      borderLeft: '2px solid var(--border)',
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'var(--white)',
+    }}>
+      <div style={{
+        padding: '10px 14px',
+        borderBottom: '1px solid var(--border-light)',
+        background: 'var(--light)',
+        display: 'flex', alignItems: 'center', gap: 8,
+        flexShrink: 0,
+      }}>
+        <FileText size={13} color="var(--mid)" />
+        <span className="label" style={{ color: 'var(--mid)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {filename ?? 'Document'}
+        </span>
+        <button
+          onClick={onClose}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'flex', color: 'var(--mid)' }}
+        >
+          <X size={14} />
+        </button>
+      </div>
+      <iframe
+        src={`/api/documents/${docId}/file`}
+        style={{ flex: 1, border: 'none', width: '100%' }}
+        title={filename ?? 'PDF viewer'}
+      />
+    </div>
+  )
+}
+
 export default function Invoices() {
   const { data: runs = [] } = useQuery({ queryKey: ['extraction-runs'], queryFn: listExtractionRuns })
-  const [runId, setRunId] = useState<string>('')
-  const activeRunId = runId || runs[0]?.id || ''
+  const [runId, setRunId] = useState<string>('all')
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
+  const [selectedFilename, setSelectedFilename] = useState<string | undefined>()
 
   const { data = [], isLoading } = useQuery({
-    queryKey: ['invoices', activeRunId],
-    queryFn: () => listInvoices(activeRunId),
-    enabled: !!activeRunId,
+    queryKey: ['invoices', runId],
+    queryFn: () => listInvoices(runId === 'all' ? undefined : runId),
   })
 
   const qc = useQueryClient()
   const { mutate: patch } = useMutation({
     mutationFn: ({ id, field, value }: { id: string; field: string; value: string }) =>
       patchInvoice(id, { [field]: value } as Partial<Invoice>),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['invoices', activeRunId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['invoices', runId] }),
   })
 
   const [sorting, setSorting] = useState<SortingState>([])
@@ -87,10 +124,42 @@ export default function Invoices() {
     col.accessor('originalFilename', {
       header: 'File',
       cell: info => (
-        <td style={{ color: 'var(--muted)', fontSize: '0.78rem', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <td style={{ color: 'var(--muted)', fontSize: '0.78rem', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {info.getValue() ?? '—'}
         </td>
       ),
+    }),
+    col.display({
+      id: 'pdf',
+      header: 'PDF',
+      cell: info => {
+        const docId = info.row.original.documentId
+        const filename = info.row.original.originalFilename
+        if (!docId) return <td />
+        const isOpen = selectedDocId === docId
+        return (
+          <td>
+            <button
+              onClick={() => {
+                if (isOpen) { setSelectedDocId(null) } else {
+                  setSelectedDocId(docId)
+                  setSelectedFilename(filename)
+                }
+              }}
+              style={{
+                background: isOpen ? 'var(--yellow)' : 'var(--light)',
+                border: `1px solid ${isOpen ? 'var(--dark)' : 'var(--border-light)'}`,
+                cursor: 'pointer', padding: '2px 8px',
+                fontSize: '0.7rem', fontWeight: 600,
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                color: 'var(--dark)',
+              }}
+            >
+              <FileText size={11} /> {isOpen ? 'Close' : 'View'}
+            </button>
+          </td>
+        )
+      },
     }),
   ]
 
@@ -109,80 +178,90 @@ export default function Invoices() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
         title="Invoices"
+        tag="Review"
         subtitle="Extracted invoices — double-click cells to correct values"
         actions={
           <input
+            className="input-base"
             placeholder="Search…"
             value={globalFilter}
             onChange={e => setGlobalFilter(e.target.value)}
-            style={{
-              background: 'var(--surface)', border: '1px solid var(--border)',
-              borderRadius: 8, padding: '6px 12px', color: 'var(--text)',
-              fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none', width: 180,
-            }}
+            style={{ width: 180 }}
           />
         }
       />
 
-      {runs.length > 0 && (
-        <div style={{ padding: '12px 32px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Extraction Run:</span>
-          <select
-            value={activeRunId}
-            onChange={e => setRunId(e.target.value)}
-            style={{
-              background: 'var(--surface)', border: '1px solid var(--border)',
-              borderRadius: 6, padding: '4px 10px', color: 'var(--text)',
-              fontSize: '0.82rem', fontFamily: 'IBM Plex Mono, monospace', outline: 'none', cursor: 'pointer',
-            }}
-          >
-            {runs.map(r => (
-              <option key={r.id} value={r.id}>{r.id.slice(0, 12)}… ({r.invoiceCount ?? 0} inv)</option>
-            ))}
-          </select>
-          <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>{data.length} invoice{data.length !== 1 ? 's' : ''}</span>
-        </div>
-      )}
+      <div style={{ padding: '10px 28px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Run:</span>
+        <select
+          className="select-base"
+          value={runId}
+          onChange={e => setRunId(e.target.value)}
+        >
+          <option value="all">All Runs</option>
+          {runs.map(r => (
+            <option key={r.id} value={r.id}>{r.id.slice(0, 12)}… ({r.invoiceCount ?? 0} inv)</option>
+          ))}
+        </select>
+        <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>{data.length} invoice{data.length !== 1 ? 's' : ''}</span>
+        {selectedDocId && (
+          <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--mid)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <FileText size={12} /> PDF open — click row PDF button to switch
+          </span>
+        )}
+      </div>
 
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        {isLoading ? (
-          <div style={{ padding: 40, textAlign: 'center' }}><span className="spinner" /></div>
-        ) : !activeRunId ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>No extraction runs yet</div>
-        ) : data.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>No invoices in this run</div>
-        ) : (
-          <table className="table-base">
-            <thead>
-              {table.getHeaderGroups().map(hg => (
-                <tr key={hg.id}>
-                  {hg.headers.map(h => (
-                    <th key={h.id} onClick={h.column.getToggleSortingHandler()} style={{ cursor: h.column.getCanSort() ? 'pointer' : 'default' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                        {h.column.getCanSort() && <ArrowUpDown size={12} style={{ opacity: 0.4 }} />}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.map(row => (
-                <tr key={row.id}>
-                  {row.getVisibleCells().map(cell => flexRender(cell.column.columnDef.cell, cell.getContext()))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Split view */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          {isLoading ? (
+            <div style={{ padding: 40, textAlign: 'center' }}><span className="spinner" /></div>
+          ) : data.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>No invoices found</div>
+          ) : (
+            <table className="table-base">
+              <thead>
+                {table.getHeaderGroups().map(hg => (
+                  <tr key={hg.id}>
+                    {hg.headers.map(h => (
+                      <th key={h.id} onClick={h.column.getToggleSortingHandler()} style={{ cursor: h.column.getCanSort() ? 'pointer' : 'default' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          {flexRender(h.column.columnDef.header, h.getContext())}
+                          {h.column.getCanSort() && <ArrowUpDown size={12} style={{ opacity: 0.4 }} />}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.map(row => (
+                  <tr
+                    key={row.id}
+                    style={{ background: selectedDocId === row.original.documentId ? 'var(--yellow-pale)' : undefined }}
+                  >
+                    {row.getVisibleCells().map(cell => flexRender(cell.column.columnDef.cell, cell.getContext()))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {selectedDocId && (
+          <PdfPanel
+            docId={selectedDocId}
+            filename={selectedFilename}
+            onClose={() => setSelectedDocId(null)}
+          />
         )}
       </div>
 
       {data.length > 0 && (
-        <div style={{ padding: '10px 32px', borderTop: '1px solid var(--border)', fontSize: '0.78rem', color: 'var(--muted)' }}>
+        <div style={{ padding: '10px 28px', borderTop: '1px solid var(--border)', fontSize: '0.78rem', color: 'var(--muted)', flexShrink: 0 }}>
           {table.getFilteredRowModel().rows.length} of {data.length} rows
           {' · '}
-          <span style={{ fontStyle: 'italic' }}>Double-click any cell to edit · changes are tracked as corrections</span>
+          <span style={{ fontStyle: 'italic' }}>Double-click cell to edit · changes tracked as corrections · click PDF to compare</span>
         </div>
       )}
     </div>

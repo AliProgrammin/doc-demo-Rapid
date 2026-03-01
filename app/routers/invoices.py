@@ -8,17 +8,17 @@ router = APIRouter(prefix="/api", tags=["invoices"])
 
 
 @router.get('/invoices')
-def list_invoices(extractionRunId: str = Query(...), db: Session = Depends(get_db)):
-    rows = (
-        db.query(Invoice)
-        .filter(Invoice.extraction_run_id == extractionRunId)
-        .all()
-    )
+def list_invoices(extractionRunId: str = Query(None), db: Session = Depends(get_db)):
+    q = db.query(Invoice)
+    if extractionRunId:
+        q = q.filter(Invoice.extraction_run_id == extractionRunId)
+    rows = q.all()
     return {
         "success": True,
         "invoices": [
             {
                 "id": i.id,
+                "documentId": i.document_id,
                 "invoiceNumber": i.invoice_number,
                 "vendorName": i.vendor_name,
                 "invoiceDate": i.invoice_date,

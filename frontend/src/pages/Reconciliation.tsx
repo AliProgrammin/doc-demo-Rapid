@@ -29,7 +29,7 @@ function MatchRow({ pair, index }: { pair: MatchedPair; index: number }) {
       </tr>
       {open && (
         <tr>
-          <td colSpan={7} style={{ background: 'var(--surface-2)', padding: '12px 16px' }}>
+          <td colSpan={7} style={{ background: 'var(--yellow-pale)', padding: '12px 16px' }}>
             <div style={{ display: 'flex', gap: 24, fontSize: '0.8rem' }}>
               {Object.entries(pair.factors ?? {}).map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -52,9 +52,9 @@ function UnmatchedSection({ title, items, type, icon: Icon }: {
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: '0.875rem', fontWeight: 600 }}>
-        <Icon size={15} color="#EF4444" />
-        <span style={{ color: '#EF4444' }}>{title}</span>
-        <span style={{ fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 400 }}>({items.length})</span>
+        <Icon size={15} color="var(--loss)" />
+        <span style={{ color: type === 'tx' ? 'var(--loss)' : 'var(--warn)' }}>{title}</span>
+        <span style={{ fontSize: '0.75rem', color: 'var(--mid)', fontWeight: 400 }}>({items.length})</span>
       </div>
       <table className="table-base">
         <thead>
@@ -120,19 +120,11 @@ export default function Reconciliation() {
         subtitle="Match bank transactions to invoices using weighted heuristic scoring"
         actions={
           <button
+            className="btn btn-yellow"
             onClick={() => doReconcile()}
             disabled={!activeRunId || isPending}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '8px 18px', borderRadius: 8,
-              background: activeRunId && !isPending ? 'var(--accent)' : 'var(--surface-2)',
-              color: activeRunId && !isPending ? '#020617' : 'var(--muted)',
-              fontWeight: 700, fontSize: '0.82rem', border: 'none',
-              cursor: activeRunId && !isPending ? 'pointer' : 'default',
-              transition: 'all 0.2s',
-            }}
           >
-            {isPending ? <span className="spinner" style={{ borderTopColor: '#020617' }} /> : <Play size={14} strokeWidth={2.5} />}
+            {isPending ? <span className="spinner" /> : <Play size={14} strokeWidth={2.5} />}
             {isPending ? 'Reconciling…' : 'Run Reconciliation'}
           </button>
         }
@@ -143,13 +135,9 @@ export default function Reconciliation() {
         <div style={{ padding: '12px 32px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Extraction Run:</span>
           <select
+            className="select-base"
             value={activeRunId}
             onChange={e => setRunId(e.target.value)}
-            style={{
-              background: 'var(--surface)', border: '1px solid var(--border)',
-              borderRadius: 6, padding: '4px 10px', color: 'var(--text)',
-              fontSize: '0.82rem', fontFamily: 'IBM Plex Mono, monospace', outline: 'none', cursor: 'pointer',
-            }}
           >
             {runs.map(r => (
               <option key={r.id} value={r.id}>{r.id.slice(0, 12)}…</option>
@@ -166,31 +154,31 @@ export default function Reconciliation() {
         ) : (
           <>
             {/* Summary cards */}
-            <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14, marginBottom: 28 }}>
+            <div className="fade-up" style={{ display: 'flex', gap: 0, marginBottom: 28, border: '1px solid var(--border)', flexWrap: 'wrap' }}>
               {[
-                { label: 'Matched', value: s?.matchedCount ?? 0, color: '#22C55E', icon: CheckCircle2 },
-                { label: 'Unmatched Tx', value: s?.unmatchedTransactionCount ?? 0, color: '#EF4444', icon: XCircle },
-                { label: 'Unmatched Inv', value: s?.unmatchedInvoiceCount ?? 0, color: '#F59E0B', icon: AlertTriangle },
-                { label: 'Total Tx', value: s?.totalTransactions ?? 0, color: '#3B82F6', icon: null },
-                { label: 'Total Inv', value: s?.totalInvoices ?? 0, color: '#A78BFA', icon: null },
-              ].map(({ label, value, color }) => (
+                { label: 'Matched',       value: s?.matchedCount ?? 0,              color: 'var(--profit)' },
+                { label: 'Unmatched Tx',  value: s?.unmatchedTransactionCount ?? 0, color: 'var(--loss)'   },
+                { label: 'Unmatched Inv', value: s?.unmatchedInvoiceCount ?? 0,     color: 'var(--warn)'   },
+                { label: 'Total Tx',      value: s?.totalTransactions ?? 0,         color: 'var(--dark)'   },
+                { label: 'Total Inv',     value: s?.totalInvoices ?? 0,             color: 'var(--dark)'   },
+              ].map(({ label, value, color }, i) => (
                 <div key={label} style={{
-                  background: 'var(--surface)', border: '1px solid var(--border)',
-                  borderRadius: 10, padding: '14px 18px',
+                  padding: '14px 20px', minWidth: 120,
+                  borderRight: i < 4 ? '1px solid var(--border-light)' : 'none',
                 }}>
                   <div className="mono" style={{ fontSize: '1.5rem', fontWeight: 700, color }}>{value}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 2 }}>{label}</div>
+                  <div className="label" style={{ color: 'var(--mid)', marginTop: 4 }}>{label}</div>
                 </div>
               ))}
             </div>
 
             {/* Matched pairs */}
             {(result.matched?.length ?? 0) > 0 && (
-              <div className="fade-up-1" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', marginBottom: 24 }}>
-                <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <CheckCircle2 size={15} color="#22C55E" />
-                  <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Matched Pairs</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>({result.matched.length}) · click row for factor breakdown</span>
+              <div className="card fade-up-1" style={{ overflow: 'hidden', marginBottom: 24 }}>
+                <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--light)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <CheckCircle2 size={13} color="var(--profit)" />
+                  <span className="label" style={{ color: 'var(--mid)' }}>Matched Pairs</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--mid)', fontWeight: 400 }}>({result.matched.length}) · click row for factor breakdown</span>
                 </div>
                 <table className="table-base">
                   <thead>

@@ -8,18 +8,17 @@ router = APIRouter(prefix="/api", tags=["transactions"])
 
 
 @router.get('/transactions')
-def list_transactions(extractionRunId: str = Query(...), db: Session = Depends(get_db)):
-    txs = (
-        db.query(Transaction)
-        .filter(Transaction.extraction_run_id == extractionRunId)
-        .order_by(Transaction.date.asc())
-        .all()
-    )
+def list_transactions(extractionRunId: str = Query(None), db: Session = Depends(get_db)):
+    q = db.query(Transaction)
+    if extractionRunId:
+        q = q.filter(Transaction.extraction_run_id == extractionRunId)
+    txs = q.order_by(Transaction.date.asc()).all()
     return {
         "success": True,
         "transactions": [
             {
                 "id": t.id,
+                "documentId": t.document_id,
                 "date": t.date,
                 "description": t.description,
                 "reference": t.reference,

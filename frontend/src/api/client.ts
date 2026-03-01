@@ -64,6 +64,7 @@ export async function listExtractionRuns(): Promise<ExtractionRun[]> {
 
 export interface Transaction {
   id: string
+  documentId: string
   date: string
   description: string
   reference: string
@@ -72,8 +73,9 @@ export interface Transaction {
   extractionConfidence: number
 }
 
-export async function listTransactions(extractionRunId: string): Promise<Transaction[]> {
-  const data = await req<{ transactions: Transaction[] }>(`/api/transactions?extractionRunId=${extractionRunId}`)
+export async function listTransactions(extractionRunId?: string): Promise<Transaction[]> {
+  const qs = extractionRunId ? `?extractionRunId=${extractionRunId}` : ''
+  const data = await req<{ transactions: Transaction[] }>(`/api/transactions${qs}`)
   return data.transactions
 }
 
@@ -88,6 +90,7 @@ export async function patchTransaction(id: string, patch: Partial<Transaction>) 
 
 export interface Invoice {
   id: string
+  documentId: string
   invoiceNumber: string
   vendorName: string
   invoiceDate: string
@@ -100,8 +103,9 @@ export interface Invoice {
   originalFilename?: string
 }
 
-export async function listInvoices(extractionRunId: string): Promise<Invoice[]> {
-  const data = await req<{ invoices: Invoice[] }>(`/api/invoices?extractionRunId=${extractionRunId}`)
+export async function listInvoices(extractionRunId?: string): Promise<Invoice[]> {
+  const qs = extractionRunId ? `?extractionRunId=${extractionRunId}` : ''
+  const data = await req<{ invoices: Invoice[] }>(`/api/invoices${qs}`)
   return data.invoices
 }
 

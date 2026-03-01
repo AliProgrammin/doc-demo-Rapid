@@ -14,3 +14,6 @@ storage/
 
 # OS
 .DS_Store
+
+# Playwright
+.playwright-mcp/
